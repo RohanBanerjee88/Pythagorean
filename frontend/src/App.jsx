@@ -4,11 +4,13 @@ import ReactMarkdown from 'react-markdown';
 import './App.css';
 import logo from './pythalogo.png';
 import sendImg from './sendingpyth.png';
-import receiveImg from './receivingpyth.png'; 
+import receiveImg from './receivingpyth.png';
+
 const API_BASE = 'http://localhost:8000';
 
+const REACTIONS = ['👍', '👎', '💡', '❓', '🔥'];
+
 function App() {
-  // View states: 'home', 'sender', 'receiver', 'chat'
   const [view, setView] = useState('home');
   
   // Sender state
@@ -16,6 +18,12 @@ function App() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState([]);
   const [uploadResult, setUploadResult] = useState(null);
+
+  // View conversation state
+  const [viewConversationId, setViewConversationId] = useState('');
+  const [viewingConversation, setViewingConversation] = useState(null);
+  const [viewActivityLinkId, setViewActivityLinkId] = useState('');
+  const [documentActivity, setDocumentActivity] = useState(null);
   
   // Receiver state
   const [linkId, setLinkId] = useState('');
@@ -27,6 +35,14 @@ function App() {
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [conversationId, setConversationId] = useState(null);
+  
+  // Collaboration state
+  const [messageReactions, setMessageReactions] = useState({});
+  const [messageComments, setMessageComments] = useState({});
+  const [activeCommentBox, setActiveCommentBox] = useState(null);
+  const [commentInput, setCommentInput] = useState('');
+  const [userName, setUserName] = useState('Anonymous');
   
   const messagesEndRef = useRef(null);
   
@@ -120,7 +136,6 @@ function App() {
     setError('');
     
     try {
-      // Try as collection first
       try {
         const response = await axios.get(`${API_BASE}/collection/${linkId}`);
         setDocInfo(response.data);
@@ -155,7 +170,41 @@ function App() {
     setDocInfo(null);
     setMessages([]);
     setIsCollection(false);
+    setConversationId(null);
+    setMessageReactions({});
+    setMessageComments({});
     setView('home');
+  };
+
+  // ==================== VIEW ACTIVITY FUNCTION ====================
+
+  const loadDocumentActivity = async () => {
+    if (!viewActivityLinkId.trim()) return;
+    
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const response = await axios.get(`${API_BASE}/document/${viewActivityLinkId}/activity`);
+      setDocumentActivity(response.data);
+      
+      // Also load the document info
+      try {
+        const docResponse = await axios.get(`${API_BASE}/document/${viewActivityLinkId}`);
+        setDocInfo(docResponse.data);
+        setIsCollection(false);
+      } catch {
+        const collResponse = await axios.get(`${API_BASE}/collection/${viewActivityLinkId}`);
+        setDocInfo(collResponse.data);
+        setIsCollection(true);
+      }
+      
+      setView('view-activity');
+    } catch (error) {
+      setError('Document not found or no activity yet. Check your link ID.');
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   // ==================== CHAT FUNCTIONS ====================
@@ -176,14 +225,21 @@ function App() {
       const response = await axios.post(`${API_BASE}/query`, {
         link_id: linkId,
         question: userMessage,
-        conversation_history: newMessages.slice(-10)
+        conversation_history: newMessages.slice(-10),
+        conversation_id: conversationId
       });
+      
+      // Store conversation ID
+      if (response.data.conversation_id) {
+        setConversationId(response.data.conversation_id);
+      }
       
       setMessages([...newMessages, {
         role: 'assistant',
         content: response.data.answer,
         sources: response.data.sources
       }]);
+      
     } catch (error) {
       setError(error.response?.data?.detail || error.message);
     } finally {
@@ -191,21 +247,160 @@ function App() {
     }
   };
   
+
+  // ==================== VIEW CONVERSATION FUNCTION ====================
+
+  const loadConversation = async () => {
+    if (!viewConversationId.trim()) return;
+    
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const response = await axios.get(`${API_BASE}/conversation/${viewConversationId}`);
+      setViewingConversation(response.data);
+      
+      // Also load the document info
+      const docResponse = await axios.get(`${API_BASE}/document/${response.data.link_id}`).catch(() => 
+        axios.get(`${API_BASE}/collection/${response.data.link_id}`)
+      );
+      setDocInfo(docResponse.data);
+      
+      setView('view-conversation');
+    } catch (error) {
+      setError('Conversation not found. Check your conversation ID.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ==================== COLLABORATION FUNCTIONS ====================
+  
+  const addReaction = async (messageIndex, reaction) => {
+    if (!conversationId) return;
+    
+    try {
+      const response = await axios.post(`${API_BASE}/reaction/add`, {
+        conversation_id: conversationId,
+        message_index: messageIndex,
+        reaction: reaction
+      });
+      
+      setMessageReactions(prev => ({
+        ...prev,
+        [messageIndex]: response.data.reactions
+      }));
+      
+    } catch (error) {
+      console.error('Error adding reaction:', error);
+    }
+  };
+  
+  const fetchReactions = async (messageIndex) => {
+    if (!conversationId) return;
+    
+    try {
+      const response = await axios.get(
+        `${API_BASE}/reaction/${conversationId}/${messageIndex}`
+      );
+      
+      setMessageReactions(prev => ({
+        ...prev,
+        [messageIndex]: response.data.reactions
+      }));
+      
+    } catch (error) {
+      console.error('Error fetching reactions:', error);
+    }
+  };
+  
+  const addComment = async (messageIndex) => {
+    if (!conversationId || !commentInput.trim()) return;
+    
+    try {
+      const response = await axios.post(`${API_BASE}/comment/add`, {
+        conversation_id: conversationId,
+        message_index: messageIndex,
+        comment_text: commentInput.trim(),
+        user_name: userName
+      });
+      
+      // Update comments
+      setMessageComments(prev => ({
+        ...prev,
+        [messageIndex]: [
+          ...(prev[messageIndex] || []),
+          response.data.comment
+        ]
+      }));
+      
+      setCommentInput('');
+      setActiveCommentBox(null);
+      
+    } catch (error) {
+      console.error('Error adding comment:', error);
+    }
+  };
+  
+  const fetchComments = async (messageIndex) => {
+    if (!conversationId) return;
+    
+    try {
+      const response = await axios.get(
+        `${API_BASE}/comment/${conversationId}/${messageIndex}`
+      );
+      
+      setMessageComments(prev => ({
+        ...prev,
+        [messageIndex]: response.data.comments
+      }));
+      
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+    }
+  };
+  
+  const toggleCommentBox = (messageIndex) => {
+    if (activeCommentBox === messageIndex) {
+      setActiveCommentBox(null);
+    } else {
+      setActiveCommentBox(messageIndex);
+      fetchComments(messageIndex);
+    }
+  };
+  
+  const copyConversationLink = () => {
+    if (!conversationId) return;
+    
+    const link = `${window.location.origin}/conversation/${conversationId}`;
+    copyToClipboard(link);
+  };
+  
+  // Load reactions and comments when conversation starts
+  useEffect(() => {
+    if (conversationId && messages.length > 0) {
+      messages.forEach((_, idx) => {
+        fetchReactions(idx);
+        fetchComments(idx);
+      });
+    }
+  }, [conversationId, messages.length]);
+  
   // ==================== RENDER ====================
   
   return (
     <div className="app">
-      {/* Logo - always visible */}
+      {/* Logo */}
       <div className={`logo-container ${view !== 'home' ? 'minimized' : ''}`}>
-      <div className="logo">
-        <img className="logo-image" src={logo} alt="pythagoras" />
-      </div>
-      {view === 'home' && (
-        <>
-          <h1 className="app-name">Pythagorean</h1>
-          <h2 className="tagline">AI memory for everything you share.</h2>
-        </>
-      )}
+        <div className="logo">
+          <img className="logo-image" src={logo} alt="pythagoras" />
+        </div>
+        {view === 'home' && (
+          <>
+            <h1 className="app-name">Pythagorean</h1>
+            <h2 className="tagline">AI memory for everything you share.</h2>
+          </>
+        )}
       </div>
       
       {/* Home View */}
@@ -235,6 +430,21 @@ function App() {
               </div>
               <div className="card-image">
                 <img src={receiveImg} alt="Receive" />
+              </div>
+            </div>
+          </div>
+          
+          {/* NEW: View Activity Card */}
+          <div className="card card-full-width" onClick={() => setView('view-activity-input')}>
+            <div className="card-content">
+              <div className="card-text">
+                <div className="card-title">VIEW ACTIVITY</div>
+                <div className="card-description">
+                  See all conversations, reactions, and comments on your shared documents
+                </div>
+              </div>
+              <div className="card-image">
+                <span style={{fontSize: '80px'}}>📊</span>
               </div>
             </div>
           </div>
@@ -357,6 +567,215 @@ function App() {
           {error && <div className="error-text">{error}</div>}
         </div>
       )}
+
+
+      {/* View Activity Input */}
+      {view === 'view-activity-input' && (
+        <div className="content-box">
+          <button className="back-btn" onClick={() => setView('home')}>← BACK</button>
+          
+          <h2 className="section-title">VIEW ACTIVITY</h2>
+          <p className="section-description">
+            Enter your document link ID to see all conversations, reactions, and comments
+          </p>
+          
+          <div className="input-group">
+            <input
+              type="text"
+              value={viewActivityLinkId}
+              onChange={(e) => setViewActivityLinkId(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && loadDocumentActivity()}
+              placeholder="ENTER DOCUMENT LINK ID"
+              className="link-input"
+            />
+            <button 
+              onClick={loadDocumentActivity}
+              disabled={isLoading || !viewActivityLinkId.trim()}
+              className="action-btn"
+            >
+              {isLoading ? 'LOADING...' : 'VIEW ACTIVITY'}
+            </button>
+          </div>
+          
+          {error && <div className="error-text">{error}</div>}
+        </div>
+      )}
+
+      {/* View Activity Display */}
+{view === 'view-activity' && documentActivity && (
+  <div className="activity-layout">
+    <div className="activity-header">
+      <button className="back-btn" onClick={() => {
+        setView('home');
+        setDocumentActivity(null);
+        setViewActivityLinkId('');
+      }}>← BACK</button>
+      <div className="activity-title">
+        <div className="activity-doc-name">
+          {isCollection 
+            ? `${docInfo.document_count} Documents`
+            : docInfo.filename
+          }
+        </div>
+        <div className="activity-link-id">ID: {documentActivity.link_id}</div>
+      </div>
+    </div>
+    
+    {/* Statistics Bar */}
+    <div className="activity-stats">
+      <div className="stat-item">
+        <div className="stat-value">{documentActivity.total_conversations}</div>
+        <div className="stat-label">Conversations</div>
+      </div>
+      <div className="stat-item">
+        <div className="stat-value">{documentActivity.total_reactions}</div>
+        <div className="stat-label">Reactions</div>
+      </div>
+      <div className="stat-item">
+        <div className="stat-value">{documentActivity.total_comments}</div>
+        <div className="stat-label">Comments</div>
+      </div>
+    </div>
+    
+    {/* All Conversations */}
+    <div className="activity-content">
+      {documentActivity.conversations.length === 0 ? (
+        <div className="no-activity">
+          <div className="no-activity-icon">📭</div>
+          <div className="no-activity-text">No activity yet</div>
+          <div className="no-activity-subtext">
+            Share your link ID and conversations will appear here
+          </div>
+        </div>
+      ) : (
+        documentActivity.conversations.map((conversation, convIdx) => (
+          <div key={convIdx} className="conversation-card">
+            <div className="conversation-card-header">
+              <div className="conversation-card-title">
+                Conversation {convIdx + 1}
+              </div>
+              <div className="conversation-card-meta">
+                {conversation.message_count} messages • {new Date(conversation.created_at).toLocaleDateString()}
+              </div>
+            </div>
+            
+            <div className="conversation-messages">
+              {conversation.messages.map((msg, msgIdx) => (
+                <div key={msgIdx} className="activity-msg">
+                  <div className="activity-msg-role">
+                    {msg.role === 'user' ? '👤 USER' : '🤖 AI'}
+                  </div>
+                  <div className="activity-msg-content">
+                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  </div>
+                  
+                  {/* Show Reactions */}
+                  {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+                    <div className="activity-reactions">
+                      {Object.entries(msg.reactions).map(([reaction, count]) => (
+                        <div key={reaction} className="activity-reaction-item">
+                          {reaction} {count}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Show Comments */}
+                  {msg.comments && msg.comments.length > 0 && (
+                    <div className="activity-comments">
+                      {msg.comments.map((comment, cIdx) => (
+                        <div key={cIdx} className="activity-comment">
+                          <span className="activity-comment-author">{comment.user_name}:</span>
+                          <span className="activity-comment-text">{comment.text}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  </div>
+)}
+
+      {/* View Conversation Display */}
+      {view === 'view-conversation' && viewingConversation && (
+        <div className="chat-layout">
+          <div className="chat-header">
+            <button className="back-btn" onClick={() => {
+              setView('home');
+              setViewingConversation(null);
+              setViewConversationId('');
+            }}>← BACK</button>
+            <div className="chat-title">
+              CONVERSATION: {viewingConversation.id}
+            </div>
+            <div className="conversation-meta">
+              {viewingConversation.messages.length} messages
+            </div>
+          </div>
+          
+          <div className="messages-area">
+            {viewingConversation.messages.map((msg, idx) => (
+              <div key={idx} className={`msg ${msg.role}`}>
+                <div className="msg-content">
+                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                </div>
+                
+                {/* Show Reactions (Read-only) */}
+                {msg.role === 'assistant' && idx > 0 && msg.reactions && Object.keys(msg.reactions).length > 0 && (
+                  <div className="collaboration-bar">
+                    <div className="reactions-container">
+                      {Object.entries(msg.reactions).map(([reaction, count]) => (
+                        <div key={reaction} className="reaction-display">
+                          {reaction} <span className="reaction-count">{count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Show Comments (Read-only) */}
+                {msg.comments && msg.comments.length > 0 && (
+                  <div className="collaboration-bar">
+                    <div className="comment-section">
+                      <div className="comments-list">
+                        {msg.comments.map((comment, cIdx) => (
+                          <div key={cIdx} className="comment-item">
+                            <div className="comment-author">{comment.user_name}</div>
+                            <div className="comment-text">{comment.text}</div>
+                            <div className="comment-time">
+                              {new Date(comment.timestamp).toLocaleString()}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {msg.sources && msg.sources.length > 0 && (
+                  <details className="sources-detail">
+                    <summary>SOURCES ({msg.sources.length})</summary>
+                    {msg.sources.map((src, i) => (
+                      <div key={i} className="source-text">{src}</div>
+                    ))}
+                  </details>
+                )}
+              </div>
+            ))}
+          </div>
+          
+          <div className="conversation-footer">
+            <div className="footer-notice">
+              👁️ Viewing conversation in read-only mode
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Chat View */}
       {view === 'chat' && (
@@ -369,6 +788,15 @@ function App() {
                 : docInfo.filename.toUpperCase()
               }
             </div>
+            {conversationId && (
+              <div className="conversation-id-display">
+                <span className="conversation-id-label">ID:</span>
+                <code className="conversation-id-code">{conversationId}</code>
+                <button className="share-conversation-btn" onClick={copyConversationLink}>
+                  📋 COPY
+                </button>
+              </div>
+            )}
           </div>
           
           <div className="messages-area">
@@ -377,6 +805,72 @@ function App() {
                 <div className="msg-content">
                   <ReactMarkdown>{msg.content}</ReactMarkdown>
                 </div>
+                
+                {/* Reactions & Comments - Only for assistant messages */}
+                {msg.role === 'assistant' && idx > 0 && conversationId && (
+                  <div className="collaboration-bar">
+                    {/* Reactions */}
+                    <div className="reactions-container">
+                      {REACTIONS.map(reaction => (
+                        <button
+                          key={reaction}
+                          className="reaction-btn"
+                          onClick={() => addReaction(idx, reaction)}
+                        >
+                          {reaction}
+                          {messageReactions[idx]?.[reaction] > 0 && (
+                            <span className="reaction-count">
+                              {messageReactions[idx][reaction]}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                      
+                      <button 
+                        className="comment-toggle-btn"
+                        onClick={() => toggleCommentBox(idx)}
+                      >
+                        💬 {messageComments[idx]?.length || 0}
+                      </button>
+                    </div>
+                    
+                    {/* Comment Box */}
+                    {activeCommentBox === idx && (
+                      <div className="comment-section">
+                        <div className="comment-input-box">
+                          <input
+                            type="text"
+                            value={commentInput}
+                            onChange={(e) => setCommentInput(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && addComment(idx)}
+                            placeholder="Add a comment..."
+                            className="comment-input"
+                          />
+                          <button 
+                            onClick={() => addComment(idx)}
+                            className="comment-submit-btn"
+                          >
+                            POST
+                          </button>
+                        </div>
+                        
+                        {/* Existing Comments */}
+                        <div className="comments-list">
+                          {messageComments[idx]?.map((comment, cIdx) => (
+                            <div key={cIdx} className="comment-item">
+                              <div className="comment-author">{comment.user_name}</div>
+                              <div className="comment-text">{comment.text}</div>
+                              <div className="comment-time">
+                                {new Date(comment.timestamp).toLocaleString()}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
                 {msg.sources && msg.sources.length > 0 && (
                   <details className="sources-detail">
                     <summary>SOURCES ({msg.sources.length})</summary>
