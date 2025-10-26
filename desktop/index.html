@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pythagorean Desktop</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="logo">🔺</div>
+      <h1>Pythagorean</h1>
+      <p class="subtitle">Turn files into AI conversations</p>
+    </div>
+
+    <!-- Upload Section -->
+    <div class="upload-section" id="uploadSection">
+      <div class="upload-area" id="uploadArea">
+        <div class="upload-icon">📄</div>
+        <div class="upload-text">Click to select a file</div>
+        <div class="upload-hint">or drag and drop</div>
+        <div class="file-types">PDF, Word, Excel, Text files</div>
+      </div>
+
+      <div class="selected-file" id="selectedFile" style="display: none;">
+        <div class="file-info">
+          <div class="file-icon-large">📄</div>
+          <div class="file-details">
+            <div class="file-name" id="fileName"></div>
+            <div class="file-size" id="fileSize"></div>
+          </div>
+        </div>
+        <button class="btn-change" id="changeFileBtn">Change File</button>
+      </div>
+
+      <button class="btn-primary" id="uploadBtn" disabled>
+        Upload & Generate Link
+      </button>
+
+      <div class="status" id="status"></div>
+    </div>
+
+    <!-- Result Section -->
+    <div class="result-section" id="resultSection" style="display: none;">
+      <div class="success-icon">✅</div>
+      <h2>File Processed Successfully!</h2>
+      
+      <div class="result-box">
+        <div class="result-item">
+          <label>📎 Shareable Link ID</label>
+          <div class="result-value">
+            <code id="linkId"></code>
+            <button class="copy-btn" id="copyLinkBtn">Copy</button>
+          </div>
+        </div>
+
+        <div class="result-item">
+          <label>🔗 Share URL</label>
+          <div class="result-value">
+            <code id="shareUrl" class="small"></code>
+            <button class="copy-btn" id="copyUrlBtn">Copy</button>
+          </div>
+        </div>
+
+        <div class="result-item">
+          <label>📊 Processing Info</label>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Filename:</span>
+              <span id="resultFilename"></span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Type:</span>
+              <span id="resultType"></span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Chunks:</span>
+              <span id="resultChunks"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="action-buttons">
+        <button class="btn-primary" id="openChatBtn">
+          💬 Open Chat Interface
+        </button>
+        <button class="btn-secondary" id="uploadAnotherBtn">
+          📤 Upload Another File
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
