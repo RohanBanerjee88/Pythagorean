@@ -5,6 +5,7 @@ import './App.css';
 import logo from './pythalogo.png';
 import sendImg from './sendingpyth.png';
 import receiveImg from './receivingpyth.png';
+import searchingimg from './pythsearching.png';
 
 const API_BASE = 'http://localhost:8000';
 
@@ -19,9 +20,7 @@ function App() {
   const [uploadProgress, setUploadProgress] = useState([]);
   const [uploadResult, setUploadResult] = useState(null);
 
-  // View conversation state
-  const [viewConversationId, setViewConversationId] = useState('');
-  const [viewingConversation, setViewingConversation] = useState(null);
+  // View activity state
   const [viewActivityLinkId, setViewActivityLinkId] = useState('');
   const [documentActivity, setDocumentActivity] = useState(null);
   
@@ -247,33 +246,6 @@ function App() {
     }
   };
   
-
-  // ==================== VIEW CONVERSATION FUNCTION ====================
-
-  const loadConversation = async () => {
-    if (!viewConversationId.trim()) return;
-    
-    setIsLoading(true);
-    setError('');
-    
-    try {
-      const response = await axios.get(`${API_BASE}/conversation/${viewConversationId}`);
-      setViewingConversation(response.data);
-      
-      // Also load the document info
-      const docResponse = await axios.get(`${API_BASE}/document/${response.data.link_id}`).catch(() => 
-        axios.get(`${API_BASE}/collection/${response.data.link_id}`)
-      );
-      setDocInfo(docResponse.data);
-      
-      setView('view-conversation');
-    } catch (error) {
-      setError('Conversation not found. Check your conversation ID.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   // ==================== COLLABORATION FUNCTIONS ====================
   
   const addReaction = async (messageIndex, reaction) => {
@@ -434,7 +406,7 @@ function App() {
             </div>
           </div>
           
-          {/* NEW: View Activity Card */}
+          {/* View Activity Card - Using receiver image temporarily */}
           <div className="card card-full-width" onClick={() => setView('view-activity-input')}>
             <div className="card-content">
               <div className="card-text">
@@ -444,7 +416,7 @@ function App() {
                 </div>
               </div>
               <div className="card-image">
-                <span style={{fontSize: '80px'}}>📊</span>
+                <img src={searchingimg} alt="Activity" />
               </div>
             </div>
           </div>
@@ -568,7 +540,6 @@ function App() {
         </div>
       )}
 
-
       {/* View Activity Input */}
       {view === 'view-activity-input' && (
         <div className="content-box">
@@ -602,177 +573,101 @@ function App() {
       )}
 
       {/* View Activity Display */}
-{view === 'view-activity' && documentActivity && (
-  <div className="activity-layout">
-    <div className="activity-header">
-      <button className="back-btn" onClick={() => {
-        setView('home');
-        setDocumentActivity(null);
-        setViewActivityLinkId('');
-      }}>← BACK</button>
-      <div className="activity-title">
-        <div className="activity-doc-name">
-          {isCollection 
-            ? `${docInfo.document_count} Documents`
-            : docInfo.filename
-          }
-        </div>
-        <div className="activity-link-id">ID: {documentActivity.link_id}</div>
-      </div>
-    </div>
-    
-    {/* Statistics Bar */}
-    <div className="activity-stats">
-      <div className="stat-item">
-        <div className="stat-value">{documentActivity.total_conversations}</div>
-        <div className="stat-label">Conversations</div>
-      </div>
-      <div className="stat-item">
-        <div className="stat-value">{documentActivity.total_reactions}</div>
-        <div className="stat-label">Reactions</div>
-      </div>
-      <div className="stat-item">
-        <div className="stat-value">{documentActivity.total_comments}</div>
-        <div className="stat-label">Comments</div>
-      </div>
-    </div>
-    
-    {/* All Conversations */}
-    <div className="activity-content">
-      {documentActivity.conversations.length === 0 ? (
-        <div className="no-activity">
-          <div className="no-activity-icon">📭</div>
-          <div className="no-activity-text">No activity yet</div>
-          <div className="no-activity-subtext">
-            Share your link ID and conversations will appear here
-          </div>
-        </div>
-      ) : (
-        documentActivity.conversations.map((conversation, convIdx) => (
-          <div key={convIdx} className="conversation-card">
-            <div className="conversation-card-header">
-              <div className="conversation-card-title">
-                Conversation {convIdx + 1}
-              </div>
-              <div className="conversation-card-meta">
-                {conversation.message_count} messages • {new Date(conversation.created_at).toLocaleDateString()}
-              </div>
-            </div>
-            
-            <div className="conversation-messages">
-              {conversation.messages.map((msg, msgIdx) => (
-                <div key={msgIdx} className="activity-msg">
-                  <div className="activity-msg-role">
-                    {msg.role === 'user' ? '👤 USER' : '🤖 AI'}
-                  </div>
-                  <div className="activity-msg-content">
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
-                  </div>
-                  
-                  {/* Show Reactions */}
-                  {msg.reactions && Object.keys(msg.reactions).length > 0 && (
-                    <div className="activity-reactions">
-                      {Object.entries(msg.reactions).map(([reaction, count]) => (
-                        <div key={reaction} className="activity-reaction-item">
-                          {reaction} {count}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {/* Show Comments */}
-                  {msg.comments && msg.comments.length > 0 && (
-                    <div className="activity-comments">
-                      {msg.comments.map((comment, cIdx) => (
-                        <div key={cIdx} className="activity-comment">
-                          <span className="activity-comment-author">{comment.user_name}:</span>
-                          <span className="activity-comment-text">{comment.text}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        ))
-      )}
-    </div>
-  </div>
-)}
-
-      {/* View Conversation Display */}
-      {view === 'view-conversation' && viewingConversation && (
-        <div className="chat-layout">
-          <div className="chat-header">
+      {view === 'view-activity' && documentActivity && (
+        <div className="activity-layout">
+          <div className="activity-header">
             <button className="back-btn" onClick={() => {
               setView('home');
-              setViewingConversation(null);
-              setViewConversationId('');
+              setDocumentActivity(null);
+              setViewActivityLinkId('');
             }}>← BACK</button>
-            <div className="chat-title">
-              CONVERSATION: {viewingConversation.id}
-            </div>
-            <div className="conversation-meta">
-              {viewingConversation.messages.length} messages
-            </div>
-          </div>
-          
-          <div className="messages-area">
-            {viewingConversation.messages.map((msg, idx) => (
-              <div key={idx} className={`msg ${msg.role}`}>
-                <div className="msg-content">
-                  <ReactMarkdown>{msg.content}</ReactMarkdown>
-                </div>
-                
-                {/* Show Reactions (Read-only) */}
-                {msg.role === 'assistant' && idx > 0 && msg.reactions && Object.keys(msg.reactions).length > 0 && (
-                  <div className="collaboration-bar">
-                    <div className="reactions-container">
-                      {Object.entries(msg.reactions).map(([reaction, count]) => (
-                        <div key={reaction} className="reaction-display">
-                          {reaction} <span className="reaction-count">{count}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                {/* Show Comments (Read-only) */}
-                {msg.comments && msg.comments.length > 0 && (
-                  <div className="collaboration-bar">
-                    <div className="comment-section">
-                      <div className="comments-list">
-                        {msg.comments.map((comment, cIdx) => (
-                          <div key={cIdx} className="comment-item">
-                            <div className="comment-author">{comment.user_name}</div>
-                            <div className="comment-text">{comment.text}</div>
-                            <div className="comment-time">
-                              {new Date(comment.timestamp).toLocaleString()}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                {msg.sources && msg.sources.length > 0 && (
-                  <details className="sources-detail">
-                    <summary>SOURCES ({msg.sources.length})</summary>
-                    {msg.sources.map((src, i) => (
-                      <div key={i} className="source-text">{src}</div>
-                    ))}
-                  </details>
-                )}
+            <div className="activity-title">
+              <div className="activity-doc-name">
+                {isCollection 
+                  ? `${docInfo.document_count} Documents`
+                  : docInfo.filename
+                }
               </div>
-            ))}
+              <div className="activity-link-id">ID: {documentActivity.link_id}</div>
+            </div>
           </div>
           
-          <div className="conversation-footer">
-            <div className="footer-notice">
-              👁️ Viewing conversation in read-only mode
+          {/* Statistics Bar */}
+          <div className="activity-stats">
+            <div className="stat-item">
+              <div className="stat-value">{documentActivity.total_conversations}</div>
+              <div className="stat-label">Conversations</div>
             </div>
+            <div className="stat-item">
+              <div className="stat-value">{documentActivity.total_reactions}</div>
+              <div className="stat-label">Reactions</div>
+            </div>
+            <div className="stat-item">
+              <div className="stat-value">{documentActivity.total_comments}</div>
+              <div className="stat-label">Comments</div>
+            </div>
+          </div>
+          
+          {/* All Conversations */}
+          <div className="activity-content">
+            {documentActivity.conversations.length === 0 ? (
+              <div className="no-activity">
+                <div className="no-activity-icon">📭</div>
+                <div className="no-activity-text">No activity yet</div>
+                <div className="no-activity-subtext">
+                  Share your link ID and conversations will appear here
+                </div>
+              </div>
+            ) : (
+              documentActivity.conversations.map((conversation, convIdx) => (
+                <div key={convIdx} className="conversation-card">
+                  <div className="conversation-card-header">
+                    <div className="conversation-card-title">
+                      Conversation {convIdx + 1}
+                    </div>
+                    <div className="conversation-card-meta">
+                      {conversation.message_count} messages • {new Date(conversation.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                  
+                  <div className="conversation-messages">
+                    {conversation.messages.map((msg, msgIdx) => (
+                      <div key={msgIdx} className="activity-msg">
+                        <div className="activity-msg-role">
+                          {msg.role === 'user' ? '👤 USER' : '🤖 AI'}
+                        </div>
+                        <div className="activity-msg-content">
+                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        </div>
+                        
+                        {/* Show Reactions */}
+                        {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+                          <div className="activity-reactions">
+                            {Object.entries(msg.reactions).map(([reaction, count]) => (
+                              <div key={reaction} className="activity-reaction-item">
+                                {reaction} {count}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* Show Comments */}
+                        {msg.comments && msg.comments.length > 0 && (
+                          <div className="activity-comments">
+                            {msg.comments.map((comment, cIdx) => (
+                              <div key={cIdx} className="activity-comment">
+                                <span className="activity-comment-author">{comment.user_name}:</span>
+                                <span className="activity-comment-text">{comment.text}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}
@@ -790,9 +685,9 @@ function App() {
             </div>
             {conversationId && (
               <div className="conversation-id-display">
-                <span className="conversation-id-label">ID:</span>
-                <code className="conversation-id-code">{conversationId}</code>
-                <button className="share-conversation-btn" onClick={copyConversationLink}>
+                <span className="conversation-id-label">LINK ID:</span>
+                <code className="conversation-id-code">{linkId}</code>
+                <button className="share-conversation-btn" onClick={() => copyToClipboard(linkId)}>
                   📋 COPY
                 </button>
               </div>

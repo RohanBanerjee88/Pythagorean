@@ -1114,7 +1114,6 @@ body, html {
 .app-name {
   font-size: 56px;
   font-weight: 700;
-  letter-spacing: 8px;
   margin-bottom: 15px;
   animation: fadeIn 1s ease;
 }
