@@ -22,9 +22,9 @@ app.add_middleware(
 # Storage
 documents = {}
 collections = {}
-conversations = {}  # NEW: Store conversation history
-reactions = {}      # NEW: Store reactions to messages
-comments = {}       # NEW: Store comments on messages
+conversations = {}
+reactions = {}
+comments = {}
 
 
 # ==================== MODELS ====================
@@ -38,13 +38,13 @@ class QueryRequest(BaseModel):
     link_id: str
     question: str
     conversation_history: Optional[List[dict]] = []
-    conversation_id: Optional[str] = None  # NEW: Track conversations
+    conversation_id: Optional[str] = None
 
 
 class ReactionRequest(BaseModel):
     conversation_id: str
     message_index: int
-    reaction: str  # e.g., "👍", "👎", "💡", "❓", "🔥"
+    reaction: str
 
 
 class CommentRequest(BaseModel):
@@ -54,7 +54,7 @@ class CommentRequest(BaseModel):
     user_name: Optional[str] = "Anonymous"
 
 
-# ==================== EXISTING ENDPOINTS ====================
+# ==================== BASIC ENDPOINTS ====================
 
 @app.get("/")
 async def root():
@@ -70,6 +70,8 @@ async def health_check():
         "conversations_count": len(conversations)
     }
 
+
+# ==================== DOCUMENT ENDPOINTS ====================
 
 @app.post("/collection/create")
 async def create_collection():
@@ -128,6 +130,35 @@ async def upload_file(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/collection/{collection_id}")
+async def get_collection(collection_id: str):
+    if collection_id not in collections:
+        raise HTTPException(status_code=404, detail="Collection not found")
+    
+    collection = collections[collection_id]
+    
+    docs = []
+    for doc_id in collection["documents"]:
+        if doc_id in documents:
+            docs.append(documents[doc_id])
+    
+    return {
+        "id": collection_id,
+        "document_count": len(docs),
+        "documents": docs,
+        "created_at": collection["created_at"]
+    }
+
+
+@app.get("/document/{link_id}")
+async def get_document(link_id: str):
+    if link_id not in documents:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return documents[link_id]
+
+
+# ==================== QUERY ENDPOINTS ====================
+
 @app.post("/search")
 async def search(request: SearchRequest):
     if request.link_id not in documents:
@@ -148,13 +179,11 @@ async def query(request: QueryRequest):
     Query can now handle both single documents AND collections
     Also creates/updates conversation history
     """
-    # Create or get conversation ID
     if not request.conversation_id:
         conversation_id = str(uuid.uuid4())[:12]
     else:
         conversation_id = request.conversation_id
     
-    # Check if it's a collection
     if request.link_id in collections:
         result = await query_collection(request)
     elif request.link_id in documents:
@@ -176,7 +205,6 @@ async def query(request: QueryRequest):
     else:
         raise HTTPException(status_code=404, detail="Document not found")
     
-    # Store conversation
     if conversation_id not in conversations:
         conversations[conversation_id] = {
             "id": conversation_id,
@@ -185,7 +213,6 @@ async def query(request: QueryRequest):
             "created_at": datetime.now().isoformat()
         }
     
-    # Add user message and AI response
     conversations[conversation_id]["messages"].append({
         "role": "user",
         "content": request.question,
@@ -199,7 +226,6 @@ async def query(request: QueryRequest):
         "timestamp": datetime.now().isoformat()
     })
     
-    # Add conversation_id to result
     result["conversation_id"] = conversation_id
     
     return result
@@ -231,50 +257,19 @@ async def query_collection(request: QueryRequest):
         raise HTTPException(status_code=500, detail=f"Error querying collection: {str(e)}")
 
 
-@app.get("/collection/{collection_id}")
-async def get_collection(collection_id: str):
-    if collection_id not in collections:
-        raise HTTPException(status_code=404, detail="Collection not found")
-    
-    collection = collections[collection_id]
-    
-    docs = []
-    for doc_id in collection["documents"]:
-        if doc_id in documents:
-            docs.append(documents[doc_id])
-    
-    return {
-        "id": collection_id,
-        "document_count": len(docs),
-        "documents": docs,
-        "created_at": collection["created_at"]
-    }
-
-
-@app.get("/document/{link_id}")
-async def get_document(link_id: str):
-    if link_id not in documents:
-        raise HTTPException(status_code=404, detail="Document not found")
-    return documents[link_id]
-
-
-# ==================== NEW: COLLABORATION ENDPOINTS ====================
+# ==================== COLLABORATION ENDPOINTS ====================
 
 @app.post("/reaction/add")
 async def add_reaction(request: ReactionRequest):
-    """
-    Add a reaction to a specific message
-    """
+    """Add a reaction to a specific message"""
     if request.conversation_id not in conversations:
         raise HTTPException(status_code=404, detail="Conversation not found")
     
-    # Create reaction key
     reaction_key = f"{request.conversation_id}_{request.message_index}"
     
     if reaction_key not in reactions:
         reactions[reaction_key] = {}
     
-    # Add or update reaction count
     if request.reaction not in reactions[reaction_key]:
         reactions[reaction_key][request.reaction] = 0
     
@@ -289,9 +284,7 @@ async def add_reaction(request: ReactionRequest):
 
 @app.get("/reaction/{conversation_id}/{message_index}")
 async def get_reactions(conversation_id: str, message_index: int):
-    """
-    Get all reactions for a specific message
-    """
+    """Get all reactions for a specific message"""
     reaction_key = f"{conversation_id}_{message_index}"
     
     return {
@@ -303,9 +296,7 @@ async def get_reactions(conversation_id: str, message_index: int):
 
 @app.post("/comment/add")
 async def add_comment(request: CommentRequest):
-    """
-    Add a comment to a specific message
-    """
+    """Add a comment to a specific message"""
     if request.conversation_id not in conversations:
         raise HTTPException(status_code=404, detail="Conversation not found")
     
@@ -333,9 +324,7 @@ async def add_comment(request: CommentRequest):
 
 @app.get("/comment/{conversation_id}/{message_index}")
 async def get_comments(conversation_id: str, message_index: int):
-    """
-    Get all comments for a specific message
-    """
+    """Get all comments for a specific message"""
     comment_key = f"{conversation_id}_{message_index}"
     
     return {
@@ -347,15 +336,12 @@ async def get_comments(conversation_id: str, message_index: int):
 
 @app.get("/conversation/{conversation_id}")
 async def get_conversation(conversation_id: str):
-    """
-    Get full conversation with all messages, reactions, and comments
-    """
+    """Get full conversation with all messages, reactions, and comments"""
     if conversation_id not in conversations:
         raise HTTPException(status_code=404, detail="Conversation not found")
     
     conversation = conversations[conversation_id]
     
-    # Attach reactions and comments to each message
     enriched_messages = []
     for idx, message in enumerate(conversation["messages"]):
         reaction_key = f"{conversation_id}_{idx}"
@@ -376,9 +362,7 @@ async def get_conversation(conversation_id: str):
 
 @app.get("/conversation/{conversation_id}/share")
 async def get_shareable_link(conversation_id: str):
-    """
-    Generate a shareable link for a conversation
-    """
+    """Generate a shareable link for a conversation"""
     if conversation_id not in conversations:
         raise HTTPException(status_code=404, detail="Conversation not found")
     
@@ -389,10 +373,8 @@ async def get_shareable_link(conversation_id: str):
     }
 
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-
+# ==================== ACTIVITY ENDPOINT ====================
+# CRITICAL: This MUST be BEFORE if __name__ == "__main__"!
 
 @app.get("/document/{link_id}/activity")
 async def get_document_activity(link_id: str):
@@ -400,15 +382,12 @@ async def get_document_activity(link_id: str):
     Get ALL conversations, reactions, and comments for a document/collection
     This is what the SENDER sees - all activity on their shared document
     """
-    # Check if document or collection exists
     if link_id not in documents and link_id not in collections:
         raise HTTPException(status_code=404, detail="Document/Collection not found")
     
-    # Find all conversations for this document
     doc_conversations = []
     for conv_id, conv_data in conversations.items():
         if conv_data["link_id"] == link_id:
-            # Enrich with reactions and comments
             enriched_messages = []
             for idx, message in enumerate(conv_data["messages"]):
                 reaction_key = f"{conv_id}_{idx}"
@@ -428,21 +407,17 @@ async def get_document_activity(link_id: str):
                 "message_count": len(conv_data["messages"])
             })
     
-    # Sort by most recent first
     doc_conversations.sort(key=lambda x: x["created_at"], reverse=True)
     
-    # Calculate statistics
-    total_reactions = sum(
-        sum(r.values()) 
-        for r in reactions.values() 
-        if any(conv["conversation_id"] in r_key for conv in doc_conversations for r_key in [list(reactions.keys())])
-    )
+    total_reactions = 0
+    total_comments = 0
     
-    total_comments = sum(
-        len(c) 
-        for c in comments.values()
-        if any(conv["conversation_id"] in c_key for conv in doc_conversations for c_key in [list(comments.keys())])
-    )
+    for conv in doc_conversations:
+        for msg in conv["messages"]:
+            if msg.get("reactions"):
+                total_reactions += sum(msg["reactions"].values())
+            if msg.get("comments"):
+                total_comments += len(msg["comments"])
     
     return {
         "link_id": link_id,
@@ -451,3 +426,10 @@ async def get_document_activity(link_id: str):
         "total_comments": total_comments,
         "conversations": doc_conversations
     }
+
+
+# ==================== MAIN ====================
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
