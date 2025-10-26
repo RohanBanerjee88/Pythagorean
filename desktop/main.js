@@ -48,10 +48,10 @@ app.on('window-all-closed', () => {
 
 // ==================== IPC Handlers ====================
 
-// Handle file selection
+// Handle file selection - NOW SUPPORTS MULTIPLE FILES
 ipcMain.handle('select-file', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openFile'],
+    properties: ['openFile', 'multiSelections'],  // Added multiSelections
     filters: [
       { 
         name: 'Documents', 
@@ -62,18 +62,22 @@ ipcMain.handle('select-file', async () => {
   });
 
   if (!result.canceled && result.filePaths.length > 0) {
-    return result.filePaths[0];
+    return result.filePaths;  // Returns array now
   }
   return null;
 });
 
-// Handle file upload
-ipcMain.handle('upload-file', async (event, filePath) => {
+// Handle file upload - NOW SUPPORTS COLLECTION ID
+ipcMain.handle('upload-file', async (event, filePath, collectionId = null) => {
   try {
     const form = new FormData();
     form.append('file', fs.createReadStream(filePath));
 
-    const response = await axios.post(`${API_BASE}/upload`, form, {
+    const url = collectionId 
+      ? `${API_BASE}/upload?collection_id=${collectionId}`
+      : `${API_BASE}/upload`;
+
+    const response = await axios.post(url, form, {
       headers: {
         ...form.getHeaders()
       },

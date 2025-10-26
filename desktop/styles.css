@@ -356,3 +356,206 @@ h1 {
 .container::-webkit-scrollbar-thumb:hover {
   background: #999;
 }
+
+/* Multi-file styles */
+.selected-files {
+  margin-bottom: 20px;
+}
+
+.files-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.files-header h3 {
+  font-size: 16px;
+  color: #333;
+  margin: 0;
+}
+
+.btn-add-more {
+  padding: 8px 16px;
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #667eea;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btn-add-more:hover {
+  background: #667eea;
+  color: white;
+}
+
+.files-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.file-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.file-list-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.file-list-icon {
+  font-size: 24px;
+}
+
+.file-list-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.file-list-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-list-size {
+  font-size: 12px;
+  color: #999;
+}
+
+.btn-remove {
+  width: 28px;
+  height: 28px;
+  background: #fee;
+  color: #c33;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: bold;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.btn-remove:hover {
+  background: #fcc;
+}
+
+.collection-notice {
+  background: #e7f3ff;
+  color: #0066cc;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  text-align: center;
+  margin-top: 12px;
+}
+
+/* Upload Progress */
+.upload-progress {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 15px;
+  margin-top: 15px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.progress-item {
+  padding: 6px 0;
+  font-size: 13px;
+  color: #666;
+}
+
+.progress-item.success {
+  color: #28a745;
+}
+
+.progress-item.error {
+  color: #dc3545;
+}
+
+/* Documents list in results */
+.documents-list {
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.doc-result-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.doc-result-item:last-child {
+  border-bottom: none;
+}
+
+.doc-result-icon {
+  font-size: 24px;
+}
+
+.doc-result-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.doc-result-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.doc-result-meta {
+  font-size: 11px;
+  color: #999;
+}
+
+/* Scrollbar for lists */
+.files-list::-webkit-scrollbar,
+.documents-list::-webkit-scrollbar,
+.upload-progress::-webkit-scrollbar {
+  width: 6px;
+}
+
+.files-list::-webkit-scrollbar-track,
+.documents-list::-webkit-scrollbar-track,
+.upload-progress::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.files-list::-webkit-scrollbar-thumb,
+.documents-list::-webkit-scrollbar-thumb,
+.upload-progress::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 10px;
+}

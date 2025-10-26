@@ -19,25 +19,30 @@
     <div class="upload-section" id="uploadSection">
       <div class="upload-area" id="uploadArea">
         <div class="upload-icon">📄</div>
-        <div class="upload-text">Click to select a file</div>
-        <div class="upload-hint">or drag and drop</div>
+        <div class="upload-text">Click to select files</div>
+        <div class="upload-hint">Select multiple files to create a collection</div>
         <div class="file-types">PDF, Word, Excel, Text files</div>
       </div>
 
-      <div class="selected-file" id="selectedFile" style="display: none;">
-        <div class="file-info">
-          <div class="file-icon-large">📄</div>
-          <div class="file-details">
-            <div class="file-name" id="fileName"></div>
-            <div class="file-size" id="fileSize"></div>
-          </div>
+      <!-- Selected Files List -->
+      <div class="selected-files" id="selectedFiles" style="display: none;">
+        <div class="files-header">
+          <h3>Selected Files (<span id="fileCount">0</span>)</h3>
+          <button class="btn-add-more" id="addMoreBtn">+ Add More</button>
         </div>
-        <button class="btn-change" id="changeFileBtn">Change File</button>
+        <div class="files-list" id="filesList"></div>
+        
+        <div class="collection-notice" id="collectionNotice" style="display: none;">
+          💡 Multiple files will be grouped into one collection
+        </div>
       </div>
 
       <button class="btn-primary" id="uploadBtn" disabled>
-        Upload & Generate Link
+        Upload Files
       </button>
+
+      <!-- Upload Progress -->
+      <div class="upload-progress" id="uploadProgress" style="display: none;"></div>
 
       <div class="status" id="status"></div>
     </div>
@@ -45,7 +50,7 @@
     <!-- Result Section -->
     <div class="result-section" id="resultSection" style="display: none;">
       <div class="success-icon">✅</div>
-      <h2>File Processed Successfully!</h2>
+      <h2 id="resultTitle">Files Processed Successfully!</h2>
       
       <div class="result-box">
         <div class="result-item">
@@ -65,21 +70,8 @@
         </div>
 
         <div class="result-item">
-          <label>📊 Processing Info</label>
-          <div class="info-grid">
-            <div class="info-item">
-              <span class="info-label">Filename:</span>
-              <span id="resultFilename"></span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Type:</span>
-              <span id="resultType"></span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Chunks:</span>
-              <span id="resultChunks"></span>
-            </div>
-          </div>
+          <label id="documentsLabel">📊 Documents</label>
+          <div class="documents-list" id="documentsList"></div>
         </div>
       </div>
 
@@ -88,7 +80,7 @@
           💬 Open Chat Interface
         </button>
         <button class="btn-secondary" id="uploadAnotherBtn">
-          📤 Upload Another File
+          📤 Upload More Files
         </button>
       </div>
     </div>

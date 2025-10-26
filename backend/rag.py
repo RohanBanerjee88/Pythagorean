@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from typing import List, Tuple, Dict
 from embeddings import search_document
+from typing import List, Tuple, Dict
 
 # Load environment variables
 load_dotenv()
@@ -100,3 +101,97 @@ def test_rag():
     print(f"Question: {test_question}")
     print(f"Answer: {answer}")
     print(f"Sources: {sources}")
+
+def query_multiple_documents(
+    doc_ids: List[str], 
+    question: str, 
+    conversation_history: List[Dict] = None
+) -> Tuple[str, List[str]]:
+    """
+    Query across multiple documents in a collection
+    
+    Strategy:
+    1. Search each document
+    2. Combine top chunks from all docs
+    3. Send to Claude with document labels
+    """
+    
+    from embeddings import search_document
+    
+    print(f"Querying {len(doc_ids)} documents...")
+    
+    all_chunks = []
+    
+    # Search each document
+    for doc_id in doc_ids:
+        chunks = search_document(doc_id, question, n_results=3)  # Get top 3 from each
+        
+        # Add document ID to each chunk for citation
+        for chunk in chunks:
+            chunk['doc_id'] = doc_id
+            all_chunks.append(chunk)
+    
+    if not all_chunks:
+        return "I couldn't find any relevant information in the documents to answer your question.", []
+    
+    # Sort by similarity score and take top 10
+    all_chunks.sort(key=lambda x: x.get('similarity_score', 0), reverse=True)
+    top_chunks = all_chunks[:10]
+    
+    # Build context with document labels
+    context = "\n\n".join([
+        f"[Source {i+1} from Document {chunk['doc_id']}]:\n{chunk['text']}"
+        for i, chunk in enumerate(top_chunks)
+    ])
+    
+    # Build prompt
+    system_prompt = """You are a helpful AI assistant that answers questions based on multiple documents.
+
+Rules:
+- Answer based ONLY on the provided context from the documents
+- Cite which document(s) you're using (e.g., "According to Document abc123...")
+- If documents disagree, note the differences
+- If the answer isn't in the documents, say so clearly
+- Be concise but complete"""
+
+    user_message = f"""DOCUMENT CONTEXT (from {len(doc_ids)} documents):
+{context}
+
+USER QUESTION: {question}
+
+Please answer based on the documents above. Cite which documents you're using."""
+
+    # Build messages
+    messages = []
+    
+    if conversation_history:
+        for msg in conversation_history[-5:]:
+            messages.append({
+                "role": msg.get("role", "user"),
+                "content": msg.get("content", "")
+            })
+    
+    messages.append({
+        "role": "user",
+        "content": user_message
+    })
+    
+    # Query Claude
+    print("Asking Claude to analyze multiple documents...")
+    response = client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=1024,
+        system=system_prompt,
+        messages=messages
+    )
+    
+    answer = response.content[0].text
+    
+    # Extract sources with document IDs
+    sources = [
+        f"[Doc {chunk['doc_id']}] {chunk['text'][:150]}..." 
+        for chunk in top_chunks[:5]
+    ]
+    
+    print("Got multi-document answer from Claude!")
+    return answer, sources

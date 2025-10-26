@@ -8,8 +8,8 @@ chroma_db/
 .env
 
 #test text files
-test.txt
-pythagoras.txt
+*.txt
+
 
 # Python cache files
 pycache/
@@ -17,3 +17,4 @@ pycache/
 # IDE settings
 .vscode/
 .idea/
+
