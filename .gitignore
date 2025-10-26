@@ -1,0 +1,19 @@
+# Ignore node modules
+node_modules/
+
+# chroma db
+chroma_db/
+
+#env files
+.env
+
+#test text files
+test.txt
+pythagoras.txt
+
+# Python cache files
+pycache/
+
+# IDE settings
+.vscode/
+.idea/
